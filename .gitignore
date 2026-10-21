@@ -20,3 +20,5 @@ __pycache__/
 server/__pycache__/
 server/runs/*.csv
 !server/runs/.gitkeep
+.vercel
+.env*
