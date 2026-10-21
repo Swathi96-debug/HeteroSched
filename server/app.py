@@ -10,14 +10,49 @@ from datetime import datetime, timezone
 from flask import Flask, jsonify, request, Response, send_from_directory
 from flask_cors import CORS
 
-from server.parser import parse_benchmark_csv, generate_clean_csv
-from server.runner import (
-    APPROVED_TRACES,
-    WORKSPACE_ROOT,
-    execute_benchmark,
-    get_approved_traces,
-    get_current_status,
-)
+import importlib.util
+import sys
+
+# Ensure current server directory is on sys.path for direct module resolution
+_CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+_PARENT_DIR = os.path.abspath(os.path.join(_CURRENT_DIR, ".."))
+
+if _CURRENT_DIR not in sys.path:
+    sys.path.insert(0, _CURRENT_DIR)
+
+if os.path.isdir(os.path.join(_PARENT_DIR, "server")) and _PARENT_DIR not in sys.path:
+    sys.path.insert(0, _PARENT_DIR)
+
+# Deterministically select package-qualified vs flat module imports based on
+# whether 'server' resolves to this directory in sys.path.
+# This eliminates broad try/except ImportError blocks and ensures internal syntax,
+# runtime, or missing-dependency errors inside parser/runner are never masked.
+_use_server_package = False
+_server_spec = importlib.util.find_spec("server")
+if _server_spec is not None and _server_spec.submodule_search_locations:
+    for _loc in _server_spec.submodule_search_locations:
+        if os.path.abspath(_loc) == _CURRENT_DIR:
+            _use_server_package = True
+            break
+
+if _use_server_package:
+    from server.parser import parse_benchmark_csv, generate_clean_csv
+    from server.runner import (
+        APPROVED_TRACES,
+        WORKSPACE_ROOT,
+        execute_benchmark,
+        get_approved_traces,
+        get_current_status,
+    )
+else:
+    from parser import parse_benchmark_csv, generate_clean_csv
+    from runner import (
+        APPROVED_TRACES,
+        WORKSPACE_ROOT,
+        execute_benchmark,
+        get_approved_traces,
+        get_current_status,
+    )
 
 app = Flask(__name__)
 
@@ -54,26 +89,36 @@ _LATEST_RUN = {
 
 
 def _load_initial_results():
-    """Load existing workspace results.csv if present as a baseline previous run."""
+    """Load existing workspace results.csv or server/sample_results.csv as baseline data."""
     default_csv = os.path.join(WORKSPACE_ROOT, "results.csv")
+    sample_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample_results.csv")
+
+    target_csv = None
+    is_sample = False
     if os.path.exists(default_csv):
+        target_csv = default_csv
+    elif os.path.exists(sample_csv):
+        target_csv = sample_csv
+        is_sample = True
+
+    if target_csv:
         try:
-            tasks, summary = parse_benchmark_csv(default_csv)
-            mtime = os.path.getmtime(default_csv)
+            tasks, summary = parse_benchmark_csv(target_csv)
+            mtime = os.path.getmtime(target_csv)
             mtime_iso = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
             _LATEST_RUN["is_fresh"] = False
-            _LATEST_RUN["source"] = "saved_results"
-            _LATEST_RUN["run_id"] = "saved_baseline"
+            _LATEST_RUN["source"] = "demo_sample" if is_sample else "saved_results"
+            _LATEST_RUN["run_id"] = "sample_baseline" if is_sample else "saved_baseline"
             _LATEST_RUN["trace_key"] = "mixed"
-            _LATEST_RUN["trace_name"] = "Mixed Workload (Saved Baseline)"
+            _LATEST_RUN["trace_name"] = "Mixed Workload (Demo / Sample Data - Not Live GPU Measurement)" if is_sample else "Mixed Workload (Saved Baseline)"
             _LATEST_RUN["timestamp_iso"] = mtime_iso
-            _LATEST_RUN["output_csv_path"] = default_csv
+            _LATEST_RUN["output_csv_path"] = target_csv
             _LATEST_RUN["summary"] = summary
             _LATEST_RUN["tasks"] = tasks
-            _LATEST_RUN["stdout"] = "Loaded from existing workspace results.csv"
-            print(f"Loaded existing results.csv ({len(tasks)} tasks). Marked as saved_results.")
+            _LATEST_RUN["stdout"] = "Demo / Sample benchmark data (offline local GPU measurement)" if is_sample else "Loaded from existing workspace results.csv"
+            print(f"Loaded {target_csv} ({len(tasks)} tasks). Marked as {_LATEST_RUN['source']}.")
         except Exception as e:
-            print(f"Could not load initial results.csv: {e}")
+            print(f"Could not load initial results: {e}")
 
 
 _load_initial_results()
@@ -146,6 +191,12 @@ def run_benchmark():
 
     try:
         run_meta = execute_benchmark(trace_key, timeout_seconds=60.0)
+    except FileNotFoundError as e:
+        return jsonify({
+            "error": "Real benchmark execution requires the local C++/CUDA runtime and NVIDIA GPU hardware (heterosched_bench binary not found). Real GPU benchmarks cannot be run in the cloud serverless environment.",
+            "detail": str(e),
+            "cloud_environment": True,
+        }), 503
     except RuntimeError as e:
         msg = str(e)
         if "progress" in msg.lower():
@@ -204,6 +255,10 @@ def download_csv():
     """
     mode = request.args.get("mode", "clean").strip().lower()
     csv_path = _LATEST_RUN.get("output_csv_path")
+
+    if not csv_path or not os.path.exists(csv_path):
+        _load_initial_results()
+        csv_path = _LATEST_RUN.get("output_csv_path")
 
     if not csv_path or not os.path.exists(csv_path):
         return jsonify({"error": "No benchmark results file available to download."}), 404

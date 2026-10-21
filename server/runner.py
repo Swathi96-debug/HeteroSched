@@ -15,8 +15,15 @@ WORKSPACE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 BINARY_PATH = os.path.join(WORKSPACE_ROOT, "build", "heterosched_bench")
 RUNS_DIR = os.path.join(WORKSPACE_ROOT, "server", "runs")
 
-# Ensure runs directory exists
-os.makedirs(RUNS_DIR, exist_ok=True)
+# Ensure runs directory exists (fallback to /tmp in read-only serverless environments)
+try:
+    os.makedirs(RUNS_DIR, exist_ok=True)
+except OSError:
+    RUNS_DIR = os.path.join('/tmp', 'heterosched_runs')
+    try:
+        os.makedirs(RUNS_DIR, exist_ok=True)
+    except OSError:
+        pass
 
 # Strict trace whitelist: key -> metadata and safe relative path
 APPROVED_TRACES: Dict[str, Dict[str, Any]] = {

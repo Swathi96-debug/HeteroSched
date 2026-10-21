@@ -1,10 +1,6 @@
 {
     "$schema": "https://openapi.vercel.sh/vercel.json",
     "services": {
-        "app": {
-            "root": ".",
-            "runtime": "python"
-        },
         "frontend": {
             "root": "frontend",
             "framework": "vite"
@@ -24,7 +20,7 @@
         {
             "source": "/(.*)",
             "destination": {
-                "service": "app"
+                "service": "frontend"
             }
         }
     ]
