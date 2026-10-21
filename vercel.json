@@ -1,17 +1,14 @@
 {
     "$schema": "https://openapi.vercel.sh/vercel.json",
     "services": {
-        "app": {
-            "root": ".",
-            "runtime": "python"
-        },
         "frontend": {
             "root": "frontend",
             "framework": "vite"
         },
         "server": {
             "root": "server",
-            "framework": "flask"
+            "framework": "flask",
+            "entrypoint": "app:app"
         }
     },
     "rewrites": [
@@ -24,7 +21,7 @@
         {
             "source": "/(.*)",
             "destination": {
-                "service": "app"
+                "service": "frontend"
             }
         }
     ]

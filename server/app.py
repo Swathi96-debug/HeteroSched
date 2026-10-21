@@ -6,18 +6,37 @@ Also serves the built frontend production bundle if present.
 """
 
 import os
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from flask import Flask, jsonify, request, Response, send_from_directory
 from flask_cors import CORS
 
-from server.parser import parse_benchmark_csv, generate_clean_csv
-from server.runner import (
-    APPROVED_TRACES,
-    WORKSPACE_ROOT,
-    execute_benchmark,
-    get_approved_traces,
-    get_current_status,
-)
+# Ensure both local server/ root execution (e.g. Vercel service) and parent workspace execution work
+_server_dir = Path(__file__).resolve().parent
+_workspace_root = _server_dir.parent
+for _path_item in [str(_workspace_root), str(_server_dir)]:
+    if _path_item not in sys.path:
+        sys.path.insert(0, _path_item)
+
+try:
+    from server.parser import parse_benchmark_csv, generate_clean_csv
+    from server.runner import (
+        APPROVED_TRACES,
+        WORKSPACE_ROOT,
+        execute_benchmark,
+        get_approved_traces,
+        get_current_status,
+    )
+except ImportError:
+    from parser import parse_benchmark_csv, generate_clean_csv
+    from runner import (
+        APPROVED_TRACES,
+        WORKSPACE_ROOT,
+        execute_benchmark,
+        get_approved_traces,
+        get_current_status,
+    )
 
 app = Flask(__name__)
 
