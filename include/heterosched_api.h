@@ -48,6 +48,7 @@ public:
     void WaitAll();
 
     const TelemetryMonitor& GetTelemetry() const { return telemetry_; }
+    const GatedController& GetController() const { return controller_; }
 
 private:
     void ApplyCrossLayerPriority(TaskDescriptor* task, ExecutionDevice device);

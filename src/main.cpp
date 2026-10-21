@@ -118,7 +118,8 @@ static void write_results_csv(const std::string& path,
     out.close();
 }
 
-static void print_summary(const std::vector<TaskDescriptor>& tasks, double total_time_ms, const HeteroSchedConfig& config) {
+static void print_summary(const std::vector<TaskDescriptor>& tasks, double total_time_ms,
+                          const HeteroSchedConfig& config, const GatedController* controller = nullptr) {
     size_t cpu_count = 0, gpu_count = 0, failed_count = 0;
     double total_decision = 0, total_exec = 0, total_transfer = 0, total_latency = 0;
 
@@ -150,6 +151,28 @@ static void print_summary(const std::vector<TaskDescriptor>& tasks, double total
         std::cout << "Avg transfer time (GPU tasks): " << (total_transfer / gpu_count) << " us\n";
     } else {
         std::cout << "Avg transfer time (GPU tasks): N/A (no GPU tasks executed)\n";
+    }
+
+    if (controller && config.enable_tier2 && !config.force_cpu && !config.force_gpu && !config.static_rule) {
+        const auto& stats = controller->GetStats();
+        const auto* model = controller->GetModel();
+        std::cout << "\n--- Decision Forest & Scheduling Breakdown ---\n";
+        if (model && model->IsForestLoaded()) {
+            std::cout << "  Active Model:    Random Forest (" << model->NumTrees() << " trees, "
+                      << model->TotalNodes() << " nodes, max depth " << model->MaxDepth() << ")\n";
+        } else {
+            std::cout << "  Active Model:    Analytical Cost Model (Fallback)\n";
+        }
+        std::cout << "  Decisions Routed:\n";
+        std::cout << "    • Guard Rules (Fixed CPU):       " << stats.guard_cpu_tasks << " tasks\n";
+        std::cout << "    • Tier-1 Heuristics:              " << (stats.tier1_cpu_tasks + stats.tier1_gpu_tasks)
+                  << " tasks (CPU: " << stats.tier1_cpu_tasks << ", GPU: " << stats.tier1_gpu_tasks << ")\n";
+        std::cout << "    • Tier-2 Random Forest:           " << (stats.tier2_rf_cpu_tasks + stats.tier2_rf_gpu_tasks)
+                  << " tasks (CPU: " << stats.tier2_rf_cpu_tasks << ", GPU: " << stats.tier2_rf_gpu_tasks << ")\n";
+        if (stats.dynamic_penalty_shifts > 0) {
+            std::cout << "    • Contention Overrides:           " << stats.dynamic_penalty_shifts
+                      << " tasks (GPU -> CPU via PCIe/queue penalty)\n";
+        }
     }
     std::cout << "===========================\n";
 }
@@ -336,7 +359,7 @@ int main(int argc, char** argv) {
     auto wall_end = std::chrono::high_resolution_clock::now();
     double total_time_ms = std::chrono::duration<double, std::milli>(wall_end - wall_start).count();
 
-    print_summary(tasks, total_time_ms, config);
+    print_summary(tasks, total_time_ms, config, &runtime.GetController());
     write_results_csv(output_path, tasks, total_time_ms, config);
     std::cout << "Results written to " << output_path << "\n";
 

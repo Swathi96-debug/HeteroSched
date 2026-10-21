@@ -1,0 +1,78 @@
+Training Report - HeteroSched Random Forest
+Dataset: 10000 samples, 10 features
+Train/Test split: 8000 / 2000
+Class balance: CPU=4329, GPU=5671
+Feature columns: ['flops', 'bytes_in', 'bytes_out', 'pcie_load', 'gpu_queue_depth', 'transfer_time_us', 'task_type_CONV2D', 'task_type_QUICKSORT', 'task_type_SGEMM', 'task_type_SPMV']
+
+============================================================
+RANDOM FOREST CLASSIFIER (Device Placement)
+============================================================
+
+[Cross-Validation] 5-fold accuracy: 0.9856 (+/- 0.0105)
+  Per-fold: 0.9894, 0.9756, 0.9888, 0.9894, 0.9850
+
+[Test Set] Accuracy: 0.9860
+
+              precision    recall  f1-score   support
+
+         CPU       0.99      0.98      0.98       866
+         GPU       0.98      0.99      0.99      1134
+
+    accuracy                           0.99      2000
+   macro avg       0.99      0.99      0.99      2000
+weighted avg       0.99      0.99      0.99      2000
+
+Confusion Matrix:
+             Pred_CPU  Pred_GPU
+    True_CPU     847        19
+    True_GPU       9      1125
+
+[Feature Importance]
+  1.       task_type_QUICKSORT: 0.3057
+  2.                     flops: 0.2200
+  3.                 bytes_out: 0.1163
+  4.          transfer_time_us: 0.1016
+  5.           gpu_queue_depth: 0.0939
+  6.                  bytes_in: 0.0729
+  7.          task_type_CONV2D: 0.0412
+  8.           task_type_SGEMM: 0.0281
+  9.            task_type_SPMV: 0.0179
+  10.                 pcie_load: 0.0021
+
+[Inference Latency] 18631.6 us per prediction (Python sklearn, 10000 iterations)
+
+[Model Stats]
+  Trees: 20
+  Total nodes: 998
+  Max tree depth (actual): 6
+  Avg nodes per tree: 49.9
+
+============================================================
+RANDOM FOREST REGRESSORS (Execution Time Prediction)
+============================================================
+
+--- CPU Time Regressor ---
+  MAE:  53085.48 us
+  RMSE: 299179.88 us
+  R²:   0.9957
+  CV R²: 0.9960 (+/- 0.0006)
+  Top-5 features:
+                    bytes_out: 0.3280
+             transfer_time_us: 0.2645
+                        flops: 0.2354
+                     bytes_in: 0.1702
+                    pcie_load: 0.0013
+  Saved to ml/models/rf_cpu_regressor.pkl
+
+--- GPU Time Regressor ---
+  MAE:  8637.83 us
+  RMSE: 22770.19 us
+  R²:   0.9953
+  CV R²: 0.9956 (+/- 0.0003)
+  Top-5 features:
+          task_type_QUICKSORT: 0.6922
+                    bytes_out: 0.0927
+                        flops: 0.0836
+                     bytes_in: 0.0661
+             transfer_time_us: 0.0640
+  Saved to ml/models/rf_gpu_regressor.pkl
