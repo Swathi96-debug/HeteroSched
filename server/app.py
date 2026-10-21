@@ -6,50 +6,32 @@ Also serves the built frontend production bundle if present.
 """
 
 import os
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from flask import Flask, jsonify, request, Response, send_from_directory
 from flask_cors import CORS
 
-import importlib.util
-import sys
+# Ensure both local server/ root execution (e.g. Vercel service) and parent workspace execution work
+_server_dir = Path(__file__).resolve().parent
+_workspace_root = _server_dir.parent
+for _path_item in [str(_workspace_root), str(_server_dir)]:
+    if _path_item not in sys.path:
+        sys.path.insert(0, _path_item)
 
-# Ensure current server directory is on sys.path for direct module resolution
-_CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-_PARENT_DIR = os.path.abspath(os.path.join(_CURRENT_DIR, ".."))
-
-if _CURRENT_DIR not in sys.path:
-    sys.path.insert(0, _CURRENT_DIR)
-
-if os.path.isdir(os.path.join(_PARENT_DIR, "server")) and _PARENT_DIR not in sys.path:
-    sys.path.insert(0, _PARENT_DIR)
-
-# Deterministically select package-qualified vs flat module imports based on
-# whether 'server' resolves to this directory in sys.path.
-# This eliminates broad try/except ImportError blocks and ensures internal syntax,
-# runtime, or missing-dependency errors inside parser/runner are never masked.
-_use_server_package = False
-_server_spec = importlib.util.find_spec("server")
-if _server_spec is not None and _server_spec.submodule_search_locations:
-    for _loc in _server_spec.submodule_search_locations:
-        if os.path.abspath(_loc) == _CURRENT_DIR:
-            _use_server_package = True
-            break
-
-if _use_server_package:
+try:
     from server.parser import parse_benchmark_csv, generate_clean_csv
     from server.runner import (
         APPROVED_TRACES,
-        BINARY_PATH,
         WORKSPACE_ROOT,
         execute_benchmark,
         get_approved_traces,
         get_current_status,
     )
-else:
+except ImportError:
     from parser import parse_benchmark_csv, generate_clean_csv
     from runner import (
         APPROVED_TRACES,
-        BINARY_PATH,
         WORKSPACE_ROOT,
         execute_benchmark,
         get_approved_traces,
