@@ -39,6 +39,7 @@ if _use_server_package:
     from server.parser import parse_benchmark_csv, generate_clean_csv
     from server.runner import (
         APPROVED_TRACES,
+        BINARY_PATH,
         WORKSPACE_ROOT,
         execute_benchmark,
         get_approved_traces,
@@ -48,6 +49,7 @@ else:
     from parser import parse_benchmark_csv, generate_clean_csv
     from runner import (
         APPROVED_TRACES,
+        BINARY_PATH,
         WORKSPACE_ROOT,
         execute_benchmark,
         get_approved_traces,
@@ -126,9 +128,14 @@ _load_initial_results()
 
 @app.route("/api/system/info", methods=["GET"])
 def get_system_info():
-    """Returns detected GPU and system configuration specs."""
+    """Returns detected GPU and system configuration specs, differentiating local GPU from cloud demo."""
+    binary_available = os.path.exists(BINARY_PATH)
+    mode = "local_gpu" if binary_available else "cloud_demo"
     return jsonify({
         "status": "online",
+        "mode": mode,
+        "is_local_gpu": binary_available,
+        "execution_target": "NVIDIA GeForce RTX 4050 (Direct CUDA Kernel Dispatch)" if binary_available else "Cloud Serverless (Demo / Offline Baseline Only)",
         "gpu": {
             "name": "NVIDIA GeForce RTX 4050 Laptop GPU",
             "compute_capability": "8.9",
@@ -136,6 +143,7 @@ def get_system_info():
             "sm_count": 20,
             "memory_bus_width_bits": 96,
             "stream_priority_range": "[-5, 0]",
+            "hardware_present": binary_available,
         },
         "scheduler": {
             "engine": "HeteroSched Dual-Tier Engine",
@@ -149,6 +157,7 @@ def get_system_info():
         "host": {
             "platform": "Linux (Ubuntu 24.04 LTS under WSL2)",
             "architecture": "x86_64",
+            "mode": mode,
         },
     })
 
@@ -305,5 +314,6 @@ def serve_frontend(path):
 
 
 if __name__ == "__main__":
-    print("Starting HeteroSched Backend API on http://127.0.0.1:5000 ...")
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    port = int(os.environ.get("PORT", 5000))
+    print(f"Starting HeteroSched Backend API on http://127.0.0.1:{port} ...")
+    app.run(host="127.0.0.1", port=port, debug=False)

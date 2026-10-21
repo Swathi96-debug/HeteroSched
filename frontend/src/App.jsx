@@ -147,6 +147,7 @@ export default function App() {
         error={error}
         isLoadingTraces={loadingTraces}
         isLoadingLatest={loadingLatestRun}
+        systemInfo={systemInfo}
       />
 
       {/* Benchmark Results Area */}

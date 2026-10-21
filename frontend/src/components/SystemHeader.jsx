@@ -83,8 +83,8 @@ export default function SystemHeader({ systemInfo, isRunning, isFresh, source, t
 
           {/* Live Execution Status */}
           <div style={{
-            background: isRunning ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.12)',
-            border: `1px solid ${isRunning ? 'rgba(245, 158, 11, 0.4)' : 'rgba(16, 185, 129, 0.3)'}`,
+            background: isRunning ? 'rgba(245, 158, 11, 0.15)' : (systemInfo?.is_local_gpu ? 'rgba(16, 185, 129, 0.12)' : 'rgba(56, 189, 248, 0.12)'),
+            border: `1px solid ${isRunning ? 'rgba(245, 158, 11, 0.4)' : (systemInfo?.is_local_gpu ? 'rgba(16, 185, 129, 0.3)' : 'rgba(56, 189, 248, 0.3)')}`,
             borderRadius: '8px',
             padding: '0.4rem 0.75rem',
             display: 'flex',
@@ -96,12 +96,16 @@ export default function SystemHeader({ systemInfo, isRunning, isFresh, source, t
               width: '8px',
               height: '8px',
               borderRadius: '50%',
-              backgroundColor: isRunning ? '#f59e0b' : '#10b981',
+              backgroundColor: isRunning ? '#f59e0b' : (systemInfo?.is_local_gpu ? '#10b981' : '#38bdf8'),
               display: 'inline-block',
-              boxShadow: isRunning ? '0 0 8px #f59e0b' : '0 0 8px #10b981'
+              boxShadow: isRunning ? '0 0 8px #f59e0b' : (systemInfo?.is_local_gpu ? '0 0 8px #10b981' : '0 0 8px #38bdf8')
             }} className={isRunning ? 'animate-pulse' : 'animate-pulse-glow'} />
-            <span style={{ color: isRunning ? '#fbbf24' : '#34d399', fontWeight: '600' }}>
-              {isRunning ? 'Executing Real CUDA Benchmark...' : 'CUDA Runtime Ready'}
+            <span style={{ color: isRunning ? '#fbbf24' : (systemInfo?.is_local_gpu ? '#34d399' : '#38bdf8'), fontWeight: '600' }}>
+              {isRunning
+                ? 'Executing Real CUDA Benchmark on RTX 4050...'
+                : (systemInfo?.is_local_gpu
+                    ? 'Local GPU Engine Active (RTX 4050)'
+                    : 'Cloud Demo Mode (Vercel Serverless)')}
             </span>
           </div>
         </div>

@@ -11,6 +11,7 @@ export default function TraceSelector({
   error,
   isLoadingTraces = false,
   isLoadingLatest = false,
+  systemInfo = null,
 }) {
   const isFresh = latestRun?.is_fresh;
   const timestamp = latestRun?.timestamp_iso;
@@ -119,15 +120,25 @@ export default function TraceSelector({
             {isRunning ? (
               <>
                 <Loader2 size={18} className="animate-spin" />
-                <span>Running CUDA Benchmark...</span>
+                <span>Running CUDA Benchmark on RTX 4050...</span>
+              </>
+            ) : systemInfo && systemInfo.is_local_gpu === false ? (
+              <>
+                <Play size={18} fill="#ffffff" />
+                <span>Execute Benchmark (Cloud Demo)</span>
               </>
             ) : (
               <>
                 <Play size={18} fill="#ffffff" />
-                <span>Execute Real Benchmark</span>
+                <span>Execute Real Benchmark (RTX 4050)</span>
               </>
             )}
           </button>
+          {systemInfo && systemInfo.is_local_gpu === false && (
+            <div style={{ fontSize: '0.75rem', color: '#38bdf8', textAlign: 'center', maxWidth: '240px', lineHeight: '1.2' }}>
+              Cloud demo mode. For live GPU execution, launch locally via <code style={{ color: '#f8fafc' }}>./scripts/launch_dashboard.sh</code>.
+            </div>
+          )}
 
           {/* Provenance Badge: Fresh Run vs Saved Results */}
           <div style={{
